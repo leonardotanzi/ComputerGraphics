@@ -103,9 +103,14 @@ void drawGround() {
 }
 
 void drawBall() {
+	glColor3f(0.4f, 0.2f, 0.1f);
+	glMaterialf(GL_FRONT, GL_AMBIENT, (0.2, 0.2, 0.2, 1));
+	glMaterialf(GL_FRONT, GL_DIFFUSE, (0.4, 0.2, 0.1, 1));
+	glMaterialf(GL_FRONT, GL_SPECULAR, (0, 0, 0, 1));
+	glMaterialf(GL_FRONT, GL_SHININESS, 55);
+	glMaterialf(GL_FRONT, GL_EMISSION, (1, 1, 0, 1));
 	if (modulo(ballAngle) >= 360) ballAngle = 0;
 	else ballAngle += speedRot;
-	glColor3f(1.0f, 1.0f, 1.0f);
 	glPushMatrix();
 	glTranslatef(xBall, ballRay, 0.0f);
 	glRotatef(ballAngle + speedRot, 1, 0, 0);
@@ -114,27 +119,43 @@ void drawBall() {
 }
 
 void drawCoin() {
+	glColor3f(1.0f, 1.0f, 0.0f);
+	glMaterialf(GL_FRONT, GL_AMBIENT, (0, 0, 0, 1));
+	glMaterialf(GL_FRONT, GL_DIFFUSE, (1, 1, 0.8, 1));
+	glMaterialf(GL_FRONT, GL_SPECULAR, (0, 0, 0, 1));
+	glMaterialf(GL_FRONT, GL_SHININESS, 55);
+	glMaterialf(GL_FRONT, GL_EMISSION, (1, 1, 0, 1));
 	if (modulo(coinAngle) >= 360) coinAngle = 0;
 	else coinAngle += speedRot;
-	glColor3f(1.0f, 1.0f, 0.0f);
 	glTranslatef(0.0f, coinRay, 0.0f);
 	glRotatef(coinAngle + speedRot, 0, 1, 0);
-	glutSolidTorus(coinRay/2, coinRay, 20, 20);// (coinRay, 20, 20);
+	glutSolidTorus(coinRay/2, coinRay, 20, 20);
 }
 
 void drawLava() {
 	glColor3f(1.0f, 0.4f, 0.0f);
 	glBegin(GL_QUADS);
-	glVertex3f(-lavaEdge/2, 0.02f, -lavaEdge/2);
-	glVertex3f(-lavaEdge/2, 0.02f, lavaEdge/2);
-	glVertex3f(lavaEdge/2, 0.02f, lavaEdge/2);
-	glVertex3f(lavaEdge/2, 0.02f, -lavaEdge/2);
+	glNormal3f(0, 1, 0);
+	glMaterialf(GL_FRONT, GL_AMBIENT, (0.5, 0.2, 0, 1));
+	glMaterialf(GL_FRONT, GL_DIFFUSE, (0.8, 0.8, 0.8, 1));
+	glMaterialf(GL_FRONT, GL_SPECULAR, (0, 0, 0, 1));
+	glMaterialf(GL_FRONT, GL_SHININESS, 5.0);
+	glMaterialf(GL_FRONT, GL_EMISSION, (1, 0.6, 0, 1));
+	glVertex3f(-lavaEdge / 2, 0.02f, -lavaEdge / 2);
+	glVertex3f(-lavaEdge / 2, 0.02f, lavaEdge / 2);
+	glVertex3f(lavaEdge / 2, 0.02f, lavaEdge / 2);
+	glVertex3f(lavaEdge / 2, 0.02f, -lavaEdge / 2);
 	glEnd();
 }
 
 void drawWater() {
 	glColor3f(0.0f, 0.4f, 1.0f);
 	glBegin(GL_QUADS);
+	glMaterialf(GL_FRONT, GL_AMBIENT, (0, 0, 1, 1));
+	glMaterialf(GL_FRONT, GL_DIFFUSE, (0.1, 0.5, 0.8, 1.0));
+	glMaterialf(GL_FRONT, GL_SPECULAR, (1.0, 1.0, 1.0, 1.0));
+	glMaterialf(GL_FRONT, GL_SHININESS, 5.0);
+	glMaterialf(GL_FRONT, GL_EMISSION, (0, 0.4, 1, 1));
 	glVertex3f(-waterEdge / 2, 0.01f, -waterEdge / 2);
 	glVertex3f(-waterEdge / 2, 0.01f, waterEdge / 2);
 	glVertex3f(waterEdge / 2, 0.01f, waterEdge / 2);
@@ -186,12 +207,9 @@ bool collision_with_lava(int OBJECT, int arrayIndex, float myedge, float x, floa
 	for (int i = 0; i < NLAVA; i++) {
 		if ( (OBJECT != LAVA) || (i != arrayIndex) ) {
 			if ( (modulo(xLava[i]-x) < (lavaEdge+myedge)) && (modulo(zLava[i]-z) < (lavaEdge+myedge)) ) {
-//				if (OBJECT == BALL) fprintf(stdout, "++: %f - Distance: x: %f<%f, z: %f<%f\n",
-//					ballRay, modulo(xLava[i] - x), (lavaEdge + myedge), zLava[i], (lavaEdge + myedge));
 				// Collisione
 				if ( (OBJECT == BALL) && (!lavaCollision[i]) ) {
 					lavaCollision[i] = true;
-					fprintf(stdout, "lavacoll = true\n");
 					if (nLifes < maxLifes) {
 						nLifes++;
 						ballRay += ballIncr;
@@ -203,7 +221,6 @@ bool collision_with_lava(int OBJECT, int arrayIndex, float myedge, float x, floa
 			else {
 				if ( (OBJECT == BALL) && (lavaCollision[i]) ) {
 					lavaCollision[i] = false;
-					fprintf(stdout, "lavacoll = false\n");
 				}
 			}
 		}
@@ -258,7 +275,6 @@ int collision_with_a_coin(float myedge, float x, float z) {
 		if ((modulo(xCoin[i] - x) < (coinRay + myedge)) && (modulo(zCoin[i] - z) < (coinRay + myedge))) {
 			// Collisione
 			fprintf(stdout, "\a");
-			//fprintf(stdout, "%d - z: %f\n", i, zCoin[i]);
 			points += coinPoints*(multiplierCount / 10);
 			multiplierCount += multiplierIncr;
 			zCoin[i] = coinRay + 2 * ballRay + 0.1f;
@@ -278,24 +294,28 @@ void drawRandomObject(int OBJECT) {
 		edge = lavaEdge;
 		x = xLava;
 		z = zLava;
+		glEnable(GL_NORMALIZE);
 		break;
 	case WATER:
 		size = NWATER;
 		edge = waterEdge;
 		x = xWater;
 		z = zWater;
+		glEnable(GL_NORMALIZE);
 		break;
 	case COIN:
 		size = NCOINS;
 		edge = coinRay;
 		x = xCoin;
 		z = zCoin;
+		glDisable(GL_NORMALIZE);
 		break;
 	case TREE:
 		size = NTREES;
 		edge = treeEdge;
 		x = xTree;
 		z = zTree;
+		glEnable(GL_NORMALIZE);
 		break;
 	}
 
@@ -360,7 +380,6 @@ void drawRandomObject(int OBJECT) {
 
 // Funzione di diplay
 void renderScene(void) {
-	glClearColor(0.8f, 0.5f, 0.1f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 	// Set the camera
@@ -368,6 +387,7 @@ void renderScene(void) {
 		0.0f, 1.0f, 4.0f,
 		0.0f, 1.0f, 0.0f);
 
+	glClear(GL_COLOR_BUFFER_BIT);
 	if (gameOn) {
 		// Draw elements
 		drawHud();
@@ -385,6 +405,8 @@ void renderScene(void) {
 		}
 	}
 	else {
+		glDisable(GL_LIGHTING);
+		glClearColor(0.8f, 0.5f, 0.1f, 1.0f);
 		if (gameOver) {
 			glColor3f(1.0f, 0.8f, 0.8f);
 			drawText(xGameOver, yGameOver, gameOverString, -1);
@@ -438,6 +460,23 @@ void init() {
 		xTree[i] = 0.0f;
 		zTree[i] = startDistance;
 	}
+	
+	// Illuminazione
+	GLfloat ambient[] = { 0.0,0.0,0.0,1.0 };
+	GLfloat diffuse[] = { 1.0,1.0,1.0,1.0 };
+	GLfloat position[] = { 0.0,3.0,2.0,0.0 };
+	GLfloat lmodel_amb[] = { 0.4,0.4,0.4,1.0 };
+	GLfloat local_view[] = { 0.0 };
+	glEnable(GL_DEPTH_TEST);
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
+	glLightfv(GL_LIGHT0, GL_POSITION, position);
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lmodel_amb);
+	glLightModelfv(GL_LIGHT_MODEL_LOCAL_VIEWER, local_view);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	glEnable(GL_COLOR_MATERIAL);
+	glClearColor(0.8f, 0.5f, 0.1f, 1.0f);
 }
 
 // Funzione dei tasti normali
