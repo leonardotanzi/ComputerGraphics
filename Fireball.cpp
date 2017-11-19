@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <stdio.h>+
 #include <stdlib.h>
 #include <gl/GLUT.h>
 #include <math.h>
@@ -6,27 +6,35 @@
 #include <string.h>
 #include <sstream>
 
+// Interruttori di gioco, menu e gameover
+bool gameOn = false, gameOver = false;
+char *gameOverString = "GAME OVER", *newGameString = "NUOVA PARTITA", *finalScoreString = "Punteggio: ";
+const float xNewGame = 0.5f, yNewGame = 0.0f, xGameOver = -0.5f, yGameOver = 2.0f, xFinalScore = -0.55f, yFinalScore = 1.5f, changeColorInterval = 1000.0f;
+float changeColorTime = 0.0f;
+
 // Id degli oggetti
-const int BALL = 0, LAVA = 1, WATER = 2, COIN = 3;
+const int BALL = 0, LAVA = 1, WATER = 2, COIN = 3, TREE = 4;
 // N degli oggetti generati
-const int NLAVA = 2, NWATER = 2, NCOINS = 5;
+const int NLAVA = 2, NWATER = 2, NCOINS = 5, NTREES = 10;
 
 // Raggi/lati degli oggetti
-float ballRay = 0.3f, coinRay = 0.15f;
-float lavaEdge = 0.8f, waterEdge = 0.8f;
+float ballRayInit = 0.3f, ballRay = ballRayInit, coinRay = 0.15f;
+const float lavaEdge = 0.8f, waterEdge = 0.8f, treeEdge = 1.0f;
 
 // Valori minimi e massimi della x della palla e degli oggetti
-float xMin = -2.01f, xMax = 2.01f;
+const float xMin = -2.01f, xMax = 2.01f;
 // Valori minimi e massimi del raggio della palla
-float ballRayMin = 0.1f, ballRayMax = 2*ballRay;
+float ballRayMin = 0.1f, ballRayMax = 2*ballRayInit;
 // Velocità con cui si muovono gli oggetti
-float speed = 0.01f, minSpeed = 0.001f, maxSpeed = 0.05f, speedIncr = 0.001f;
+float speedInit = 0.01f, speed = speedInit, minSpeed = 0.001f, maxSpeed = 0.05f, speedIncr = 0.001f;
 // Valore di partenza della palla
-float xBall = 0.0f;
+float xBallInit = 0.0f, xBall = xBallInit;
 // Velocità della palla
-float xMovement = 0.1f;
+const float xMovement = 0.1f;
+// Velocità di rotazione degli oggetti (palla e moneta)
+float angleInit = 0.0f, ballAngle = angleInit, coinAngle = angleInit, speedRot = 0.2f;
 // Incremento/decremento palla
-float ballIncr = 0.05f;
+const float ballIncr = 0.05f;
 
 // Posizione iniziale oggetti
 float startDistance = 100.0f;
@@ -37,49 +45,42 @@ float xWater[] = { 0.0f, 0.0f };
 float zWater[] = { startDistance, startDistance };
 float xCoin[] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 float zCoin[] = { startDistance, startDistance, startDistance, startDistance, startDistance };
+float xTree[] = { startDistance, startDistance, startDistance, startDistance, startDistance };
+float zTree[] = { startDistance, startDistance, startDistance, startDistance, startDistance };
 bool lavaCollision[] = { false, false };
 bool waterCollision[] = { false, false };
 
 // Valori HUD
 // Vite
-float lifeRay = 0.1f, xLifeCenter = -1.7f, yLifeCenter = 2.7f, distanceBetweenLifes = 0.01f;
-int maxLifes = 5, nLifes = 3;// maxLifes;
+const float lifeRay = 0.1f, xLifeCenter = -1.7f, yLifeCenter = 2.7f, distanceBetweenLifes = 0.01f;
+int maxLifes = 5, nLifesInit = 3, nLifes = nLifesInit;
 // Punteggio
-int points = 0, lavaPoints = 50, waterPoints = 50, coinPoints = 100, multiplierCount = 10, multiplierIncr = 5;
+const float xPoints = 0.0f, yPoints = 2.5f, xMult = 1.5f, yMult = 2.5f;
+int pointsInit = 0, points = pointsInit, lavaPoints = 50, waterPoints = 50, coinPoints = 100,
+multiplierCountInit = 10, multiplierCount = multiplierCountInit, multiplierIncr = 5;
 
-char *IntToChar(int number)
-{
-	std::string s = std::to_string(number);
-	char const *pchar = s.c_str();
-	//char *s = pchar;
-	//return pchar;
-	return "";
+// Calcola il modulo di un numero
+float modulo(float n) {
+	if (n < 0) n = n - 2 * n;
+	return n;
 }
 
-void drawText(int x, int y, int z, char *string, int value)
+void drawText(float x, float y, char *string, int value)
 {
-	char const *myStr;
-	if (string != "x") {
-		glColor3f(1.0f, 1.0f, 1.0f);
-		std::string s = std::to_string(value);
-		char const *pchar = s.c_str();
-		myStr = pchar;
-		fprintf(stdout, "%s\n", myStr);
-		//sprintf(string, "%d", value);
-	}
-	else {
-		myStr = string;
+	char myStr[10];
+	if (string == "") {
+		sprintf(myStr, "%d", value);
+		string = myStr;
 	}
 	//set the position of the text in the window using the x and y coordinates
 	glRasterPos2f(x, y);
 	//get the length of the string to display
-	int len = (int)strlen(myStr);
-	fprintf(stdout, "%d\n", len);
+	int len = (int)strlen(string);
 
 	//loop to display character by character
 	for (int i = 0; i < len; i++)
 	{
-		glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, myStr[i]);
+		glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, string[i]);
 	}
 };
 
@@ -102,17 +103,23 @@ void drawGround() {
 }
 
 void drawBall() {
+	if (modulo(ballAngle) >= 360) ballAngle = 0;
+	else ballAngle += speedRot;
 	glColor3f(1.0f, 1.0f, 1.0f);
 	glPushMatrix();
 	glTranslatef(xBall, ballRay, 0.0f);
+	glRotatef(ballAngle + speedRot, 1, 0, 0);
 	glutSolidSphere(ballRay, 20, 20);
 	glPopMatrix();
 }
 
 void drawCoin() {
+	if (modulo(coinAngle) >= 360) coinAngle = 0;
+	else coinAngle += speedRot;
 	glColor3f(1.0f, 1.0f, 0.0f);
 	glTranslatef(0.0f, coinRay, 0.0f);
-	glutSolidSphere(coinRay, 20, 20);
+	glRotatef(coinAngle + speedRot, 0, 1, 0);
+	glutSolidTorus(coinRay/2, coinRay, 20, 20);// (coinRay, 20, 20);
 }
 
 void drawLava() {
@@ -135,6 +142,17 @@ void drawWater() {
 	glEnd();
 }
 
+void drawTree() {
+	glColor3f(0.4f, 0.2f, 0.1f);
+	glBegin(GL_QUADS);
+	glVertex3f(-treeEdge / 8, -treeEdge, 0.0f);
+	glVertex3f(-treeEdge / 8, treeEdge, 0.0f);
+	glVertex3f(treeEdge / 8, treeEdge, 0.0f);
+	glVertex3f(treeEdge / 8, -treeEdge, 0.0f);
+	glEnd();
+}
+
+
 void drawLife(float green) {
 	glColor3f(0.0f, green, 0.0f);
 	glBegin(GL_TRIANGLE_FAN);
@@ -153,17 +171,14 @@ void drawHud() {
 		glTranslatef(distanceBetweenLifes + 2*lifeRay, 0, 0);
 	}
 	glPopMatrix();
+	glColor3f(0.0f, 0.0f, 0.0f);
 	// Scrivo i punti
-	drawText(0, yLifeCenter, 0, "", points);
+	drawText(xPoints, yPoints, "", points);
 	// Scrivo il moltiplicatore
-	drawText(0.9f, yLifeCenter, 0, "x", -1);
-	drawText(0.92f, yLifeCenter, 0, "", multiplierCount%10);
-}
-
-// Calcola il modulo di un numero
-float modulo(float n) {
-	if (n < 0) n = n - 2*n;
-	return n;
+	char tmp[10], *multStr;
+	sprintf(tmp, "x%d", multiplierCount / 10);
+	multStr = tmp;
+	drawText(xMult, yMult, multStr, -1);
 }
 
 // Verifica se l'oggetto in questione collide con uno qualunque tra gli oggetti di tipo LAVA
@@ -180,7 +195,7 @@ bool collision_with_lava(int OBJECT, int arrayIndex, float myedge, float x, floa
 					if (nLifes < maxLifes) {
 						nLifes++;
 						ballRay += ballIncr;
-						points += lavaPoints*(multiplierCount % 10);
+						points += lavaPoints*(multiplierCount / 10);
 					}
 				}
 				return true;
@@ -230,8 +245,6 @@ bool collision_with_coins(int OBJECT, int arrayIndex, float myedge, float x, flo
 		if ( (OBJECT != COIN) || (i != arrayIndex) ) {
 			if ((modulo(xCoin[i] - x) < (coinRay + myedge)) && (modulo(zCoin[i] - z) < (coinRay + myedge))) {
 				// Collisione
-				points += coinPoints*(multiplierCount % 10);
-				multiplierCount += multiplierIncr;
 				return true;
 			}
 		}
@@ -246,6 +259,8 @@ int collision_with_a_coin(float myedge, float x, float z) {
 			// Collisione
 			fprintf(stdout, "\a");
 			//fprintf(stdout, "%d - z: %f\n", i, zCoin[i]);
+			points += coinPoints*(multiplierCount / 10);
+			multiplierCount += multiplierIncr;
 			zCoin[i] = coinRay + 2 * ballRay + 0.1f;
 			return i;
 		}
@@ -276,6 +291,12 @@ void drawRandomObject(int OBJECT) {
 		x = xCoin;
 		z = zCoin;
 		break;
+	case TREE:
+		size = NTREES;
+		edge = treeEdge;
+		x = xTree;
+		z = zTree;
+		break;
 	}
 
 	int distanceFromBall = 20;
@@ -291,6 +312,9 @@ void drawRandomObject(int OBJECT) {
 				do {
 					attempt++;
 					x[i] = xMin + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (xMax - xMin)));
+					// Incrementa maggiormente la x se l'oggetto è un albero
+					if (OBJECT == TREE) x[i] = modulo(x[i]) + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (1.0f)));
+
 					z[i] = -30.0f;
 					
 					if ( (!collision_with_lava(OBJECT, i, edge, x[i], z[i])) && (!collision_with_water(OBJECT, i, edge, x[i], z[i])) ) {
@@ -319,22 +343,15 @@ void drawRandomObject(int OBJECT) {
 				drawCoin();
 				collision_with_a_coin(ballRay, xBall, 0.0);
 				break;
+			case TREE:
+				glTranslatef(xMin - x[i], 0, z[i]);
+				drawTree();
+				glPopMatrix();
+				glPushMatrix();
+				glTranslatef(xMax + x[i], 0, z[i]);
+				drawTree();
 			}
 			glPopMatrix();
-		}
-		switch (OBJECT) {
-		case LAVA:
-			xLava[i] = x[i];
-			zLava[i] = z[i];
-			break;
-		case WATER:
-			xWater[i] = x[i];
-			zWater[i] = z[i];
-			break;
-		case COIN:
-			xCoin[i] = x[i];
-			zCoin[i] = z[i];
-			break;
 		}
 	}
 	collision_with_lava(BALL, -1, 0, xBall, 0);
@@ -343,7 +360,6 @@ void drawRandomObject(int OBJECT) {
 
 // Funzione di diplay
 void renderScene(void) {
-
 	glClearColor(0.8f, 0.5f, 0.1f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
@@ -352,16 +368,94 @@ void renderScene(void) {
 		0.0f, 1.0f, 4.0f,
 		0.0f, 1.0f, 0.0f);
 
-	// Draw elements
-	drawGround();
-	drawBall();
-	drawRandomObject(LAVA);
-	drawRandomObject(WATER);
-	drawRandomObject(COIN);
-	drawHud();
+	if (gameOn) {
+		// Draw elements
+		drawHud();
+		drawGround();
+		drawBall();
+		drawRandomObject(LAVA);
+		drawRandomObject(WATER);
+		drawRandomObject(COIN);
+		drawRandomObject(TREE);
+
+		// Verifico se è gameover
+		if (nLifes < 1) {
+			gameOn = false;
+			gameOver = true;
+		}
+	}
+	else {
+		if (gameOver) {
+			glColor3f(1.0f, 0.8f, 0.8f);
+			drawText(xGameOver, yGameOver, gameOverString, -1);
+			char tmp[50], *pointsStr;
+			sprintf(tmp, "%s%d", finalScoreString, points);
+			pointsStr = tmp;
+			glColor3f(0.0f, 0.0f, 0.0f);
+			drawText(xFinalScore, yFinalScore, pointsStr, -1);
+		}
+		if (changeColorTime < changeColorInterval) {
+			glColor3f(1.0f, 1.0f, 1.0f);
+		}
+		else if (changeColorTime < 2 * changeColorInterval) {
+			glColor3f(0.0f, 0.0f, 0.0f);
+		}
+		else {
+			changeColorTime = 0.0f;
+		}
+		changeColorTime += 1.0f;
+		drawText(xNewGame, yNewGame, newGameString, -1);
+	}
 
 	glutSwapBuffers();
 }
+
+// Funzione di inizializzazione
+void init() {
+	ballRay = ballRayInit;
+	speed = speedInit;
+	xBall = xBallInit;
+	ballAngle = angleInit;
+	coinAngle = angleInit;
+	nLifes = nLifesInit;
+	points = pointsInit;
+
+	for (int i = 0; i < NLAVA; i++) {
+		xLava[i] = 0.0f;
+		zLava[i] = startDistance;
+		lavaCollision[i] = false;
+	}
+	for (int i = 0; i < NWATER; i++) {
+		xWater[i] = 0.0f;
+		zWater[i] = startDistance;
+		waterCollision[i] = false;
+	}
+	for (int i = 0; i < NCOINS; i++) {
+		xCoin[i] = 0.0f;
+		zCoin[i] = startDistance;
+	}
+	for (int i = 0; i < NTREES; i++) {
+		xTree[i] = 0.0f;
+		zTree[i] = startDistance;
+	}
+}
+
+// Funzione dei tasti normali
+void processNormalKeys(unsigned char key, int x, int y) {
+	// 13: codice ascii del tasto ENTER (INVIO)
+	const int ENTER = 13;
+
+	switch (key) {
+	case ENTER:
+		if (!gameOn) {
+			gameOn = true;
+			gameOver = false;
+			changeColorTime = 0.0f;
+			init();
+		}
+	}
+}
+
 
 // Funzione dei tasti speciali
 void processSpecialKeys(int key, int xx, int yy) {
@@ -369,12 +463,14 @@ void processSpecialKeys(int key, int xx, int yy) {
 	float fraction = 0.1f;
 
 	switch (key) {
+	// SINISTRA - DESTRA: sposta palla
 	case GLUT_KEY_LEFT:
 		if (xBall > xMin)	xBall -= xMovement;
 		break;
 	case GLUT_KEY_RIGHT:
 		if (xBall < xMax)	xBall += xMovement;
 		break;
+	// SU - GIU': modifica velocità di gioco
 	case GLUT_KEY_UP:
 		if (speed < maxSpeed)	speed += speedIncr;
 		break;
@@ -408,10 +504,6 @@ void changeSize(int w, int h) {
 	glMatrixMode(GL_MODELVIEW);
 }
 
-// Funzione di inizializzazione
-void init() {
-
-}
 
 int main(int argc, char **argv) {
 
@@ -426,12 +518,11 @@ int main(int argc, char **argv) {
 	glutDisplayFunc(renderScene);
 	glutReshapeFunc(changeSize);
 	glutIdleFunc(renderScene);
-	//glutKeyboardFunc(processNormalKeys);
+	glutKeyboardFunc(processNormalKeys);
 	glutSpecialFunc(processSpecialKeys);
 
 	// OpenGL init
 	glEnable(GL_DEPTH_TEST);
-	init();
 
 	// enter GLUT event processing cycle
 	glutMainLoop();
