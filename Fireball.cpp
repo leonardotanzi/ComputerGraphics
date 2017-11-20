@@ -5,6 +5,8 @@
 #include <string>
 #include <string.h>
 #include <sstream>
+//#include <Windows.h>
+//#include <Mmsystem.h>
 
 // Interruttori di gioco, menu e gameover
 bool gameOn = false, gameOver = false;
@@ -35,6 +37,10 @@ const float xMovement = 0.1f;
 float angleInit = 0.0f, ballAngle = angleInit, coinAngle = angleInit, speedRot = 0.2f;
 // Incremento/decremento palla
 const float ballIncr = 0.05f;
+// Gestione del colore della lava (in particolare, della componente verde (G))
+float lavaColorInit = 0.0f, lavaColor = lavaColorInit, lavaColorIncr = 0.001f;
+// Gestione del colore dell'acqua (in particolare, delle componenti rosso e verde (RG))
+float waterColorInit = 0.0f, waterColor = waterColorInit, waterColorIncr = 0.001f;
 
 // Posizione iniziale oggetti
 float startDistance = 100.0f;
@@ -69,7 +75,7 @@ void drawText(float x, float y, char *string, int value)
 {
 	char myStr[10];
 	if (string == "") {
-		sprintf(myStr, "%d", value);
+		sprintf_s(myStr, "%d", value);
 		string = myStr;
 	}
 	//set the position of the text in the window using the x and y coordinates
@@ -104,11 +110,11 @@ void drawGround() {
 
 void drawBall() {
 	glColor3f(0.4f, 0.2f, 0.1f);
-	glMaterialf(GL_FRONT, GL_AMBIENT, (0.2, 0.2, 0.2, 1));
-	glMaterialf(GL_FRONT, GL_DIFFUSE, (0.4, 0.2, 0.1, 1));
-	glMaterialf(GL_FRONT, GL_SPECULAR, (0, 0, 0, 1));
-	glMaterialf(GL_FRONT, GL_SHININESS, 55);
-	glMaterialf(GL_FRONT, GL_EMISSION, (1, 1, 0, 1));
+	GLfloat specular[] = { 1.0, 1.0, 1.0, 1.0 };
+	GLfloat shininess[] = { 55.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR,	specular);
+	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
+	
 	if (modulo(ballAngle) >= 360) ballAngle = 0;
 	else ballAngle += speedRot;
 	glPushMatrix();
@@ -120,11 +126,10 @@ void drawBall() {
 
 void drawCoin() {
 	glColor3f(1.0f, 1.0f, 0.0f);
-	glMaterialf(GL_FRONT, GL_AMBIENT, (0, 0, 0, 1));
-	glMaterialf(GL_FRONT, GL_DIFFUSE, (1, 1, 0.8, 1));
-	glMaterialf(GL_FRONT, GL_SPECULAR, (0, 0, 0, 1));
-	glMaterialf(GL_FRONT, GL_SHININESS, 55);
-	glMaterialf(GL_FRONT, GL_EMISSION, (1, 1, 0, 1));
+	GLfloat specular[] = { 1.0, 1.0, 0.0, 1.0 };
+	GLfloat shininess[] = { 55.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
 	if (modulo(coinAngle) >= 360) coinAngle = 0;
 	else coinAngle += speedRot;
 	glTranslatef(0.0f, coinRay, 0.0f);
@@ -133,14 +138,14 @@ void drawCoin() {
 }
 
 void drawLava() {
-	glColor3f(1.0f, 0.4f, 0.0f);
+	glColor3f(1.0f, lavaColor, 0.0f);
 	glBegin(GL_QUADS);
+	GLfloat specular[] = { 1.0, 0.0, 0.0, 1.0 };
+	GLfloat shininess[] = { 55.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
 	glNormal3f(0, 1, 0);
-	glMaterialf(GL_FRONT, GL_AMBIENT, (0.5, 0.2, 0, 1));
-	glMaterialf(GL_FRONT, GL_DIFFUSE, (0.8, 0.8, 0.8, 1));
-	glMaterialf(GL_FRONT, GL_SPECULAR, (0, 0, 0, 1));
-	glMaterialf(GL_FRONT, GL_SHININESS, 5.0);
-	glMaterialf(GL_FRONT, GL_EMISSION, (1, 0.6, 0, 1));
+	
 	glVertex3f(-lavaEdge / 2, 0.02f, -lavaEdge / 2);
 	glVertex3f(-lavaEdge / 2, 0.02f, lavaEdge / 2);
 	glVertex3f(lavaEdge / 2, 0.02f, lavaEdge / 2);
@@ -149,13 +154,14 @@ void drawLava() {
 }
 
 void drawWater() {
-	glColor3f(0.0f, 0.4f, 1.0f);
 	glBegin(GL_QUADS);
-	glMaterialf(GL_FRONT, GL_AMBIENT, (0, 0, 1, 1));
-	glMaterialf(GL_FRONT, GL_DIFFUSE, (0.1, 0.5, 0.8, 1.0));
-	glMaterialf(GL_FRONT, GL_SPECULAR, (1.0, 1.0, 1.0, 1.0));
-	glMaterialf(GL_FRONT, GL_SHININESS, 5.0);
-	glMaterialf(GL_FRONT, GL_EMISSION, (0, 0.4, 1, 1));
+	glColor3f(waterColor, waterColor, 1.0f);
+	GLfloat specular[] = { 0.0, 1.0, 1.0, 1.0 };
+	GLfloat shininess[] = { 55.0 };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
+	glNormal3f(0, 1, 0);
+
 	glVertex3f(-waterEdge / 2, 0.01f, -waterEdge / 2);
 	glVertex3f(-waterEdge / 2, 0.01f, waterEdge / 2);
 	glVertex3f(waterEdge / 2, 0.01f, waterEdge / 2);
@@ -197,7 +203,7 @@ void drawHud() {
 	drawText(xPoints, yPoints, "", points);
 	// Scrivo il moltiplicatore
 	char tmp[10], *multStr;
-	sprintf(tmp, "x%d", multiplierCount / 10);
+	sprintf_s(tmp, "x%d", multiplierCount / 10);
 	multStr = tmp;
 	drawText(xMult, yMult, multStr, -1);
 }
@@ -274,6 +280,7 @@ int collision_with_a_coin(float myedge, float x, float z) {
 	for (int i = 0; i < NCOINS; i++) {
 		if ((modulo(xCoin[i] - x) < (coinRay + myedge)) && (modulo(zCoin[i] - z) < (coinRay + myedge))) {
 			// Collisione
+			//PlaySound(TEXT("coin.ogg"), NULL, SND_ASYNC | SND_FILENAME);
 			fprintf(stdout, "\a");
 			points += coinPoints*(multiplierCount / 10);
 			multiplierCount += multiplierIncr;
@@ -295,6 +302,9 @@ void drawRandomObject(int OBJECT) {
 		x = xLava;
 		z = zLava;
 		glEnable(GL_NORMALIZE);
+		lavaColor += lavaColorIncr;
+		if ( (lavaColor >= 0.7f) || (lavaColor <= 0.0f) )
+			lavaColorIncr = lavaColorIncr - 2*lavaColorIncr;
 		break;
 	case WATER:
 		size = NWATER;
@@ -302,6 +312,10 @@ void drawRandomObject(int OBJECT) {
 		x = xWater;
 		z = zWater;
 		glEnable(GL_NORMALIZE);
+		waterColor += waterColorIncr;
+		if ((waterColor >= 0.7f) || (waterColor <= 0.0f))
+			waterColorIncr = waterColorIncr - 2 * waterColorIncr;
+		fprintf(stdout, "%f\n", waterColor);
 		break;
 	case COIN:
 		size = NCOINS;
@@ -411,7 +425,7 @@ void renderScene(void) {
 			glColor3f(1.0f, 0.8f, 0.8f);
 			drawText(xGameOver, yGameOver, gameOverString, -1);
 			char tmp[50], *pointsStr;
-			sprintf(tmp, "%s%d", finalScoreString, points);
+			sprintf_s(tmp, "%s%d", finalScoreString, points);
 			pointsStr = tmp;
 			glColor3f(0.0f, 0.0f, 0.0f);
 			drawText(xFinalScore, yFinalScore, pointsStr, -1);
@@ -441,6 +455,8 @@ void init() {
 	coinAngle = angleInit;
 	nLifes = nLifesInit;
 	points = pointsInit;
+	lavaColor = lavaColorInit;
+	waterColor = waterColorInit;
 
 	for (int i = 0; i < NLAVA; i++) {
 		xLava[i] = 0.0f;
@@ -476,7 +492,7 @@ void init() {
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 	glEnable(GL_COLOR_MATERIAL);
-	glClearColor(0.8f, 0.5f, 0.1f, 1.0f);
+	glClearColor(0.8f, 0.5f, 0.1f, 0.0f);
 }
 
 // Funzione dei tasti normali
