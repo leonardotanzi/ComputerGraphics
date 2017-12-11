@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "Sound.h"
+#include "AssimpObj.h"
 using namespace std;
 
 //////////////////// VARIABILI E COSTANTI ////////////////////
@@ -23,6 +24,9 @@ using namespace std;
 // Creo oggetto di tipo Sound, per l'esecuzione dell'audio di gioco
 Sound sound;
 
+// Creo oggetti di tipo AssimpObj, per importare i modelli di Blender
+AssimpObj ball, tree;
+
 // Interruttori di gioco, menu e gameover
 bool gameOn = false, gameOver = false, menuOn = false;
 char *gameOverString = "GAME OVER", *newGameString = "NUOVA PARTITA", *finalScoreString = "Punteggio: ", *resumeString = "Riprendi", *stopString = "Termina gioco";
@@ -30,25 +34,23 @@ const float xNewGame = 0.5f, yNewGame = 0.0f, xGameOver = -0.5f, yGameOver = 2.0
 float changeColorTime = 0.0f;
 int menu;
 
-// Id degli oggetti
-const int BALL = 0, LAVA = 1, WATER = 2, COIN = 3, TREE = 4;
 // N degli oggetti generati
 const int NLAVA = 2, NWATER = 2, NCOINS = 5, NTREES = 10;
 
 // Raggi/lati degli oggetti
-float ballRayInit = 0.3f, ballRay = ballRayInit, coinRay = 0.15f;
+float ballRayInit = 0.3f*2, ballRay = ballRayInit, coinRay = 0.15f;
 const float lavaEdge = 0.8f, waterEdge = 0.8f, treeEdge = 1.0f, yPool = 0.02f;
 
 // Valori minimi e massimi della x della palla e degli oggetti
 const float xMin = -2.01f, xMax = 2.01f;
 // Salto della palla
 const float yMin = 0.0f, yMax = 2*ballRay + coinRay + 0.5f;
-float yIncr = 0.0025f;
+float yIncr = 0.1f;
 bool jumpOn = false;
 // Valori minimi e massimi del raggio della palla
 float ballRayMin = 0.1f, ballRayMax = 2*ballRayInit;
 // Velocità con cui si muovono gli oggetti
-const float speedInit = 0.01f, minSpeed = 0.001f, maxSpeed = 0.05f, speedIncr = 0.001f;
+const float speedInit = 0.5f, minSpeed = 0.001f, maxSpeed = 1.5f, speedIncr = 0.001f;
 float speed = speedInit;
 // Valore di partenza della palla
 const float xBallInit = 0.0f;
@@ -56,16 +58,16 @@ float xBall = xBallInit, yBall = yMin;
 // Velocità della palla
 const float xMovement = 0.1f;
 // Velocità di rotazione degli oggetti (palla e moneta)
-const float angleInit = 0.0f, speedRot = 0.2f;
+const float angleInit = 0.0f, speedRot = 2.0f;
 float ballAngle = angleInit, coinAngle = angleInit;
 // Incremento/decremento palla
 const float ballIncr = 0.05f;
 // Gestione del colore della lava (in particolare, della componente verde (G))
 const float lavaColorInit = 0.0f;
-float lavaColor = lavaColorInit, lavaColorIncr = 0.001f;
+float lavaColor = lavaColorInit, lavaColorIncr = 0.01f;
 // Gestione del colore dell'acqua (in particolare, delle componenti rosso e verde (RG))
 const float waterColorInit = 0.0f;
-float waterColor = waterColorInit, waterColorIncr = 0.001f;
+float waterColor = waterColorInit, waterColorIncr = 0.01f;
 
 // Posizione iniziale oggetti
 float startDistance = 100.0f;
@@ -120,10 +122,16 @@ void drawText(float x, float y, char *string, int value)
 	}
 };
 
+void setMaterialLights(GLfloat* specular, GLfloat* shininess) {
+	glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
+	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
+}
+
 // Funzioni che disegnano gli elementi di gioco, richiamate nel drawRandomObject()
 void drawGround() {
 	glColor3f(0.5f, 0.2f, 0.2f);
 	glBegin(GL_QUADS);
+	glNormal3f(0, 1, 0);
 	glVertex3f(-100.0f, 0.0f, -100.0f);
 	glVertex3f(-100.0f, 0.0f, 100.0f);
 	glVertex3f(100.0f, 0.0f, 100.0f);
@@ -131,6 +139,7 @@ void drawGround() {
 	glEnd();
 	glColor3f(0.3f, 0.1f, 0.1f);
 	glBegin(GL_QUADS);
+	glNormal3f(0, 1, 0);
 	glVertex3f(xMin - 0.5f, 0.001f, -100.0f);
 	glVertex3f(xMin - 0.5f, 0.001f,  100.0f);
 	glVertex3f(xMax + 0.5f, 0.001f,  100.0f);
@@ -142,9 +151,8 @@ void drawBall() {
 	glColor3f(0.4f, 0.2f, 0.1f);
 	GLfloat specular[] = { 1.0, 1.0, 1.0, 1.0 };
 	GLfloat shininess[] = { 55.0 };
-	glMaterialfv(GL_FRONT, GL_SPECULAR,	specular);
-	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
-	
+	setMaterialLights(specular, shininess);
+
 	// Angolo di rotazione
 	if (modulo(ballAngle) >= 360) ballAngle = 0;
 	else ballAngle += speedRot;
@@ -154,13 +162,17 @@ void drawBall() {
 		if (yBall < 0.0f) yBall = 0.0f;
 		if (yBall >= yMax || yBall <= yMin) yIncr -= 2 * yIncr;
 		if (yBall <= yMin) jumpOn = false;
-		fprintf(stdout, "%f - %f\n", yBall, yIncr);
 	}
 
 	glPushMatrix();
 	glTranslatef(xBall, yBall+ballRay, 0.0f);
 	glRotatef(ballAngle + speedRot, -1, 0, 0);
-	glutSolidSphere(ballRay, 20, 20);
+	//glutSolidSphere(ballRay, 20, 20);
+	glEnable(GL_TEXTURE_2D);
+	const struct aiScene* myscene = ball.getScene();
+	ball.recursive_render(myscene, myscene->mRootNode, ballRay);
+	glDisable(GL_TEXTURE_2D);
+	glEnable(GL_COLOR_MATERIAL);
 	glPopMatrix();
 }
 
@@ -168,8 +180,8 @@ void drawCoin() {
 	glColor3f(1.0f, 1.0f, 0.0f);
 	GLfloat specular[] = { 1.0, 1.0, 0.0, 1.0 };
 	GLfloat shininess[] = { 55.0 };
-	glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
-	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
+	setMaterialLights(specular, shininess);
+
 	if (modulo(coinAngle) >= 360) coinAngle = 0;
 	else coinAngle += speedRot;
 	glTranslatef(0.0f, coinRay, 0.0f);
@@ -179,13 +191,13 @@ void drawCoin() {
 
 void drawLava() {
 	glColor3f(1.0f, lavaColor, 0.0f);
-	glBegin(GL_QUADS);
 	GLfloat specular[] = { 1.0, 0.0, 0.0, 1.0 };
 	GLfloat shininess[] = { 55.0 };
 	glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
 	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
-	glNormal3f(0, 1, 0);
 	
+	glBegin(GL_QUADS);
+	glNormal3f(0, 1, 0);
 	glVertex3f(-lavaEdge / 2, yPool, -lavaEdge / 2);
 	glVertex3f(-lavaEdge / 2, yPool, lavaEdge / 2);
 	glVertex3f(lavaEdge / 2, yPool, lavaEdge / 2);
@@ -194,14 +206,14 @@ void drawLava() {
 }
 
 void drawWater() {
-	glBegin(GL_QUADS);
 	glColor3f(waterColor, waterColor, 1.0f);
 	GLfloat specular[] = { 0.0, 1.0, 1.0, 1.0 };
 	GLfloat shininess[] = { 55.0 };
 	glMaterialfv(GL_FRONT, GL_SPECULAR, specular);
 	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
-	glNormal3f(0, 1, 0);
 
+	glBegin(GL_QUADS);
+	glNormal3f(0, 1, 0);
 	glVertex3f(-waterEdge / 2, yPool, -waterEdge / 2);
 	glVertex3f(-waterEdge / 2, yPool, waterEdge / 2);
 	glVertex3f(waterEdge / 2, yPool, waterEdge / 2);
@@ -211,17 +223,26 @@ void drawWater() {
 
 void drawTree() {
 	glColor3f(0.4f, 0.2f, 0.1f);
-	glBegin(GL_QUADS);
+	glEnable(GL_TEXTURE_2D);
+	const struct aiScene* myscene = ball.getScene();
+	tree.recursive_render(myscene, myscene->mRootNode, treeEdge);
+	glDisable(GL_TEXTURE_2D);
+	glEnable(GL_COLOR_MATERIAL);
+	
+	/*
+    glBegin(GL_QUADS);
 	glVertex3f(-treeEdge / 8, -treeEdge, 0.0f);
 	glVertex3f(-treeEdge / 8, treeEdge, 0.0f);
 	glVertex3f(treeEdge / 8, treeEdge, 0.0f);
 	glVertex3f(treeEdge / 8, -treeEdge, 0.0f);
 	glEnd();
+	*/
 }
 
 void drawLife(float green) {
 	glColor3f(0.0f, green, 0.0f);
 	glBegin(GL_TRIANGLE_FAN);
+	glNormal3f(0, 0, 1);
 	glVertex2f(xLifeCenter, yLifeCenter);
 	for(float ang = 0; ang <= 360; ang = ang + 15.0f)
 		glVertex2f(xLifeCenter + cos(ang)*lifeRay, yLifeCenter + sin(ang)*lifeRay);
@@ -329,7 +350,7 @@ int collision_with_a_coin(float myedge, float x, float y, float z) {
 			sound.Play(SOUND_COIN);
 			points += coinPoints*(multiplierCount / 10);
 			multiplierCount += multiplierIncr;
-			zCoin[i] = coinRay + 2 * ballRay + 0.1f;
+			zCoin[i] = 100.0f;// coinRay + 2 * ballRay + 0.1f;
 			return i;
 		}
 	}
@@ -346,7 +367,6 @@ void drawRandomObject(int OBJECT) {
 		edge = lavaEdge;
 		x = xLava;
 		z = zLava;
-		glEnable(GL_NORMALIZE);
 		lavaColor += lavaColorIncr;
 		if ( (lavaColor >= 0.7f) || (lavaColor <= 0.0f) )
 			lavaColorIncr = lavaColorIncr - 2*lavaColorIncr;
@@ -356,11 +376,9 @@ void drawRandomObject(int OBJECT) {
 		edge = waterEdge;
 		x = xWater;
 		z = zWater;
-		glEnable(GL_NORMALIZE);
 		waterColor += waterColorIncr;
 		if ((waterColor >= 0.7f) || (waterColor <= 0.0f))
 			waterColorIncr = waterColorIncr - 2 * waterColorIncr;
-		fprintf(stdout, "%f\n", waterColor);
 		break;
 	case COIN:
 		size = NCOINS;
@@ -368,24 +386,22 @@ void drawRandomObject(int OBJECT) {
 		x = xCoin;
 		y = yCoin;
 		z = zCoin;
-		glDisable(GL_NORMALIZE);
 		break;
 	case TREE:
 		size = NTREES;
 		edge = treeEdge;
 		x = xTree;
 		z = zTree;
-		glEnable(GL_NORMALIZE);
 		break;
 	}
 
-	int distanceFromBall = 20;
+	int distanceFromBall = 10;
 	// Ripete il ciclo "size" volte, dove size è il numero di oggetti di quel tipo generati
 	for (int i = 0; i < size; i++) {
-		if (z[i] > edge * distanceFromBall) {
+		if (z[i] > ballRay * distanceFromBall) {
 			// Una volta superata la palla, l'oggetto viene rigenerato con una probabilità di 1/500
 			// Serve a non generare gli oggetti tutti allo stesso tempo
-			int okGenerate = rand() % 500;
+			int okGenerate = rand() % 100;
 			int attempt = 0;
 			bool generate = false;
 			if (okGenerate == 1) {
@@ -434,6 +450,7 @@ void drawRandomObject(int OBJECT) {
 			glPopMatrix();
 		}
 	}
+	
 	collision_with_lava(BALL, -1, 0, xBall, yBall, 0);
 	collision_with_water(BALL, -1, 0, xBall, yBall, 0);
 }
@@ -477,6 +494,9 @@ void renderScene(void) {
 	gluLookAt(0.0f, 1.0f, 5.0f,
 		0.0f, 1.0f, 4.0f,
 		0.0f, 1.0f, 0.0f);
+	/*gluLookAt(0.0f, 15.0f, 15.0f,
+		0.0f, 1.0f, 4.0f,
+		0.0f, 1.0f, 0.0f);*/
 
 	glClear(GL_COLOR_BUFFER_BIT);
 	// Se il gioco è in corso
@@ -567,14 +587,18 @@ void init() {
 	GLfloat lmodel_amb[] = { 0.4f,0.4f,0.4f,1.0f };
 	GLfloat local_view[] = { 0.0 };
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_LIGHTING);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
 	glLightfv(GL_LIGHT0, GL_POSITION, position);
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lmodel_amb);
 	glLightModelfv(GL_LIGHT_MODEL_LOCAL_VIEWER, local_view);
-	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 	glEnable(GL_COLOR_MATERIAL);
+	glNormal3f(0.0f, 1.0f, 0.0f);
+	glEnable(GL_NORMALIZE);
+	glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
 	glClearColor(0.8f, 0.5f, 0.1f, 0.0f);
 
 	sound.StopAll();
@@ -670,7 +694,8 @@ int main(int argc, char **argv) {
 
 	// OpenGL init
 	glEnable(GL_DEPTH_TEST);
-
+	ball.InitGL(BALL);
+	tree.InitGL(TREE);
 	// enter GLUT event processing cycle
 	glutMainLoop();
 

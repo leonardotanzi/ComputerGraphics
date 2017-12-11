@@ -1,0 +1,20 @@
+Info,  T10176: Load /Users/Emanuele/Documents/Visual Studio 2017/Projects/Informatica grafica/Fireball/models/Tree.obj
+Info,  T10176: Found a matching importer for this file format
+Info,  T10176: Import root directory is '/Users/Emanuele/Documents/Visual Studio 2017/Projects/Informatica grafica/Fireball/models\'
+Error, T10176: OBJ/MTL: Unexpected illumination model (0-2 recognized)
+Skipping one or more lines with the same contents
+Info,  T10176: Entering post processing pipeline
+Info,  T10176: Points: 0, Lines: 0, Triangles: 2, Polygons: 0 (Meshes, X = removed)
+Info,  T10176: JoinVerticesProcess finished | Verts in: 41172 out: 11987 | ~70.9%
+Info,  T10176: Cache relevant are 2 meshes (13724 faces). Average output ACMR is 0.971364
+Info,  T10176: Leaving post processing pipeline
+l Studio 2017/Projects/Informatica grafica/Fireball/models/Tree.obj
+Info,  T10176: Found a matching importer for this file format
+Info,  T10176: Import root directory is '/Users/Emanuele/Documents/Visual Studio 2017/Projects/Informatica grafica/Fireball/models\'
+Error, T10176: OBJ/MTL: Unexpected illumination model (0-2 recognized)
+Skipping one or more lines with the same contents
+Info,  T10176: Entering post processing pipeline
+Info,  T10176: Points: 0, Lines: 0, Triangles: 2, Polygons: 0 (Meshes, X = removed)
+Info,  T10176: JoinVerticesProcess finished | Verts in: 41172 out: 11987 | ~70.9%
+Info,  T10176: Cache relevant are 2 meshes (13724 faces). Average output ACMR is 0.971364
+Info,  T10176: Leaving post processing pipeline

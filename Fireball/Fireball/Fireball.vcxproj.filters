@@ -24,9 +24,15 @@
     <ClCompile Include="Sound.cpp">
       <Filter>File di origine</Filter>
     </ClCompile>
+    <ClCompile Include="AssimpObj.cpp">
+      <Filter>File di origine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Sound.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="AssimpObj.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
   </ItemGroup>
